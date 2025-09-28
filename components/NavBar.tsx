@@ -23,13 +23,13 @@ function formatElapsed(ms: number) {
 }
 
 export default function NavBar({ activeView, setActiveView }: NavBarProps) {
-  const views = ["UE Overview", "Downlink", "Uplink", "Inferences"];
+  // Reordered so "General" is right after "UE Overview"
+  const views = ["UE Overview", "General", "Downlink", "Uplink", "Inferences"];
   const { latestSource, lastReceivedAt, paused } = useDataStore();
 
   const [elapsed, setElapsed] = useState<string>("—");
-  const [showControls, setShowControls] = useState(false); // toggles Data Controls panel
+  const [showControls, setShowControls] = useState(false);
 
-  // update elapsed every second
   useEffect(() => {
     const id = setInterval(() => {
       if (paused) setElapsed("paused");
