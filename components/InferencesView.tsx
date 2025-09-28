@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { generateMockData } from "@/lib/mockData";
-import { evaluateUEInferences, Inference } from "@/lib/inferences";
+import { evaluateUEInferences, Inference, Severity } from "@/lib/inferences";
 
 interface UE {
   pci: number;
@@ -61,12 +61,12 @@ export default function InferencesView() {
   const rows = useMemo(() => {
     return snapshot.ues.map((ue) => {
       const inferences: Inference[] = evaluateUEInferences(ue, historyRef.current[ue.rnti] ?? []);
-      const highestSeverity =
-        inferences.some((i) => i.severity === "alert")
-          ? "alert"
-          : inferences.some((i) => i.severity === "warning")
-          ? "warning"
-          : "info";
+      // Explicitly type the union to satisfy TS
+      const highestSeverity: Severity = inferences.some((i) => i.severity === "alert")
+        ? "alert"
+        : inferences.some((i) => i.severity === "warning")
+        ? "warning"
+        : "info";
       return { ue, inferences, highestSeverity };
     });
   }, [snapshot]);
@@ -153,7 +153,7 @@ export default function InferencesView() {
 }
 
 // visual badge for highest severity on a row
-function SeverityBadge({ level }: { level: "alert" | "warning" | "info" }) {
+function SeverityBadge({ level }: { level: Severity }) {
   const styles =
     level === "alert"
       ? "bg-red-50 text-red-700 border-red-200"
