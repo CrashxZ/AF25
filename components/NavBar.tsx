@@ -5,12 +5,7 @@ import { useEffect, useState } from "react";
 import { useDataStore } from "@/lib/dataStore";
 import DataSourceSwitcher from "@/components/DataSourceSwitcher";
 
-interface NavBarProps {
-  activeView: string;
-  setActiveView: (view: string) => void;
-}
-
-// Format elapsed time as "Xs / Xm Ys / Xh Ym"
+// Format elapsed time as "Xs ago / Xm Ys ago / Xh Ym ago"
 function formatElapsed(ms: number) {
   if (ms < 1000) return "just now";
   const s = Math.floor(ms / 1000);
@@ -21,23 +16,29 @@ function formatElapsed(ms: number) {
   return `${h}h ${m % 60}m ago`;
 }
 
+interface NavBarProps {
+  activeView: string;
+  setActiveView: (view: string) => void;
+}
+
 export default function NavBar({ activeView, setActiveView }: NavBarProps) {
   const views = ["UE Overview", "Downlink", "Uplink", "Inferences"];
-  const { latestSource, lastReceivedAt } = useDataStore();
+  const { latestSource, lastReceivedAt, paused } = useDataStore();
 
-  const [elapsed, setElapsed] = useState<string>("");
+  const [elapsed, setElapsed] = useState<string>("—");
 
-  // Update elapsed time every second
   useEffect(() => {
     const id = setInterval(() => {
-      if (lastReceivedAt) {
+      if (paused) {
+        setElapsed("paused");
+      } else if (lastReceivedAt) {
         setElapsed(formatElapsed(Date.now() - lastReceivedAt));
       } else {
         setElapsed("—");
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [lastReceivedAt]);
+  }, [lastReceivedAt, paused]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -71,6 +72,11 @@ export default function NavBar({ activeView, setActiveView }: NavBarProps) {
             Last transmission:{" "}
             <span className="font-medium">{elapsed}</span>
           </div>
+          {paused && (
+            <span className="px-2 py-1 rounded-md border text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-900/20 dark:border-amber-900/30">
+              Paused
+            </span>
+          )}
         </div>
       </nav>
 
