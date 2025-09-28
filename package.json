@@ -1,8 +1,8 @@
 {
   "name": "5g-ran-dashboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
-  "description": "Hackathon-ready Next.js + Tailwind + Recharts dashboard for visualizing srsRAN/OAI data. Deploys on Vercel.",
+  "description": "Hackathon-ready Next.js + Tailwind + Recharts dashboard for srsRAN/OAI. Deploys on Vercel.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,19 +12,19 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "recharts": "latest"
+    "next": "14.2.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "recharts": "2.12.7"
   },
   "devDependencies": {
-    "autoprefixer": "latest",
-    "postcss": "latest",
-    "tailwindcss": "latest",
-    "eslint": "latest",
-    "eslint-config-next": "latest",
-    "prettier": "latest",
-    "typescript": "latest"
+    "autoprefixer": "10.4.19",
+    "postcss": "8.4.38",
+    "tailwindcss": "3.4.13",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.5",
+    "prettier": "3.3.3",
+    "typescript": "5.6.2"
   },
   "engines": {
     "node": ">=18.18"
