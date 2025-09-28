@@ -1,7 +1,7 @@
 // components/DownlinkView.tsx
 "use client";
 
-import React, { useMemo, type ReactElement } from "react";
+import React, { useMemo, useState, type ReactElement } from "react";
 import { useDataStore } from "@/lib/dataStore";
 import {
   LineChart,
@@ -15,14 +15,13 @@ import {
 } from "recharts";
 
 /**
- * Downlink view (grid layout, type-safe):
- * - Reads logged snapshots from the central DataStore
- * - Renders per-UE charts in a responsive grid
- * - Uses a ChartCard wrapper so ResponsiveContainer always has exactly one child
+ * Downlink view (single UE via dropdown):
+ * - Shows a UE selector (RNTI) + connected UE count
+ * - Renders a 2×2 grid of charts for the selected UE only
+ * - Reads from centralized DataStore (no tab-local polling)
  */
 
 type DLPoint = {
-  time: string; // human readable for tooltip/axis
   t: number; // raw timestamp
   bitrate: number; // Mbps
   cqi: number;
@@ -40,7 +39,6 @@ function buildSeries(
     const ue = s.ues.find((u) => u.rnti === rnti);
     if (!ue) continue;
     out.push({
-      time: new Date(s.timestamp).toLocaleTimeString(),
       t: s.timestamp,
       bitrate: ue.downlink.bitrate / 1e6,
       cqi: ue.downlink.cqi,
@@ -61,93 +59,126 @@ export default function DownlinkView() {
     return Array.from(set).sort((a, b) => a - b);
   }, [snapshots]);
 
+  const [selectedRnti, setSelectedRnti] = useState<number | "">(() => rntis[0] ?? "");
+
+  // Keep selection valid if RNTIs change
+  const activeRnti = useMemo(() => {
+    if (selectedRnti === "" && rntis.length) return rntis[0];
+    if (selectedRnti !== "" && !rntis.includes(selectedRnti)) return rntis[0] ?? undefined;
+    return selectedRnti === "" ? undefined : selectedRnti;
+  }, [selectedRnti, rntis]);
+
+  const data = useMemo(() => {
+    if (!activeRnti) return [];
+    return buildSeries(snapshots, activeRnti);
+  }, [snapshots, activeRnti]);
+
+  const ueCount = rntis.length;
+
   if (!snapshots.length) {
     return <p className="text-gray-500 text-sm">No downlink data yet…</p>;
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold">Downlink Metrics</h2>
+      {/* Header row: title, selector, count */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Downlink Metrics</h2>
+          <p className="text-xs text-gray-500">
+            Connected UEs: <span className="font-medium">{ueCount}</span>
+          </p>
+        </div>
 
-      {rntis.map((rnti) => {
-        const data = buildSeries(snapshots, rnti);
+        <label className="text-sm text-gray-600 dark:text-gray-300">
+          UE (RNTI):&nbsp;
+          <select
+            className="rounded-md border px-2 py-1 text-sm bg-white dark:bg-gray-800 dark:border-gray-700"
+            value={activeRnti ?? ""}
+            onChange={(e) => setSelectedRnti(e.target.value ? Number(e.target.value) : "")}
+          >
+            {rntis.length === 0 && <option value="">—</option>}
+            {rntis.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-        return (
-          <div key={rnti} className="space-y-4">
-            <h3 className="font-medium text-sm text-gray-600 dark:text-gray-300">
-              UE {rnti}
-            </h3>
+      {(!activeRnti || data.length === 0) ? (
+        <div className="rounded-xl border p-6 text-sm text-gray-500">
+          Select a UE to view charts {ueCount === 0 ? "(no UEs detected yet)" : "(awaiting samples)"}.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Bitrate */}
+          <ChartCard
+            title="Bitrate (Mbps)"
+            child={
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                <YAxis />
+                <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                <Legend />
+                <Line type="monotone" dataKey="bitrate" name="DL Mbps" stroke="#0ea5e9" dot={false} />
+              </LineChart>
+            }
+          />
 
-            {/* Responsive grid: 2 cols on md, 3 on xl (we use 4 cards total) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
-              {/* Bitrate */}
-              <ChartCard
-                title="Bitrate (Mbps)"
-                child={
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                    <YAxis />
-                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                    <Legend />
-                    <Line type="monotone" dataKey="bitrate" name="DL Mbps" stroke="#0ea5e9" dot={false} />
-                  </LineChart>
-                }
-              />
+          {/* CQI */}
+          <ChartCard
+            title="CQI"
+            child={
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                <YAxis domain={[0, 15]} />
+                <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                <Legend />
+                <Line type="monotone" dataKey="cqi" name="CQI" stroke="#10b981" dot={false} />
+              </LineChart>
+            }
+          />
 
-              {/* CQI */}
-              <ChartCard
-                title="CQI"
-                child={
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                    <YAxis domain={[0, 15]} />
-                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                    <Legend />
-                    <Line type="monotone" dataKey="cqi" name="CQI" stroke="#10b981" dot={false} />
-                  </LineChart>
-                }
-              />
+          {/* Buffer Status */}
+          <ChartCard
+            title="Buffer Status (bytes)"
+            child={
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                <YAxis />
+                <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                <Legend />
+                <Line type="monotone" dataKey="buffer" name="Buffer" stroke="#f59e0b" dot={false} />
+              </LineChart>
+            }
+          />
 
-              {/* Buffer Status */}
-              <ChartCard
-                title="Buffer Status (bytes)"
-                child={
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                    <YAxis />
-                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                    <Legend />
-                    <Line type="monotone" dataKey="buffer" name="Buffer" stroke="#f59e0b" dot={false} />
-                  </LineChart>
-                }
-              />
-
-              {/* Drop Rate */}
-              <ChartCard
-                title="Drop Rate (%)"
-                child={
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                    <YAxis />
-                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                    <Legend />
-                    <Line type="monotone" dataKey="drop" name="Drops %" stroke="#a855f7" dot={false} />
-                  </LineChart>
-                }
-              />
-            </div>
-          </div>
-        );
-      })}
+          {/* Drop Rate */}
+          <ChartCard
+            title="Drop Rate (%)"
+            child={
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                <YAxis />
+                <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                <Legend />
+                <Line type="monotone" dataKey="drop" name="Drops %" stroke="#a855f7" dot={false} />
+              </LineChart>
+            }
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-// Wrapper to keep chart cards consistent; ResponsiveContainer requires exactly one child element
+// Wrapper so ResponsiveContainer always has exactly one child
 function ChartCard({ title, child }: { title: string; child: ReactElement }) {
   return (
     <div className="h-64 border rounded-xl p-3 bg-white dark:bg-gray-800 dark:border-gray-700">
