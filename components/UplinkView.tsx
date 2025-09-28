@@ -1,7 +1,7 @@
 // components/UplinkView.tsx
 "use client";
 
-import { useMemo } from "react";
+import React, { useMemo, type ReactElement } from "react";
 import { useDataStore } from "@/lib/dataStore";
 import {
   LineChart,
@@ -17,7 +17,8 @@ import {
 /**
  * Uplink view (grid layout):
  * - Reads logged snapshots from the central DataStore
- * - Renders per-UE charts in a responsive grid (no tab-local polling)
+ * - Renders per-UE charts in a responsive grid
+ * - FIX: Typed ChartCard children as ReactElement because ResponsiveContainer requires exactly one child
  */
 
 type ULPoint = {
@@ -86,66 +87,81 @@ export default function UplinkView() {
             {/* Responsive grid: 2 cols on md, 3 on xl */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {/* Bitrate */}
-              <ChartCard title="Bitrate (Mbps)">
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                  <YAxis />
-                  <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                  <Legend />
-                  <Line type="monotone" dataKey="bitrate" name="UL Mbps" stroke="#0ea5e9" dot={false} />
-                </LineChart>
-              </ChartCard>
+              <ChartCard
+                title="Bitrate (Mbps)"
+                child={
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                    <YAxis />
+                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                    <Legend />
+                    <Line type="monotone" dataKey="bitrate" name="UL Mbps" stroke="#0ea5e9" dot={false} />
+                  </LineChart>
+                }
+              />
 
               {/* SINR */}
-              <ChartCard title="SINR (dB)">
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                  <YAxis />
-                  <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                  <Legend />
-                  <Line type="monotone" dataKey="sinr" name="SINR" stroke="#10b981" dot={false} />
-                </LineChart>
-              </ChartCard>
+              <ChartCard
+                title="SINR (dB)"
+                child={
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                    <YAxis />
+                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                    <Legend />
+                    <Line type="monotone" dataKey="sinr" name="SINR" stroke="#10b981" dot={false} />
+                  </LineChart>
+                }
+              />
 
               {/* RSRP */}
-              <ChartCard title="RSRP (dBm)">
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                  <YAxis />
-                  <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                  <Legend />
-                  <Line type="monotone" dataKey="rsrp" name="RSRP" stroke="#ef4444" dot={false} />
-                </LineChart>
-              </ChartCard>
+              <ChartCard
+                title="RSRP (dBm)"
+                child={
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                    <YAxis />
+                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                    <Legend />
+                    <Line type="monotone" dataKey="rsrp" name="RSRP" stroke="#ef4444" dot={false} />
+                  </LineChart>
+                }
+              />
 
               {/* BSR */}
-              <ChartCard title="BSR (bytes)">
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                  <YAxis />
-                  <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                  <Legend />
-                  <Line type="monotone" dataKey="bsr" name="BSR" stroke="#f59e0b" dot={false} />
-                </LineChart>
-              </ChartCard>
+              <ChartCard
+                title="BSR (bytes)"
+                child={
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                    <YAxis />
+                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                    <Legend />
+                    <Line type="monotone" dataKey="bsr" name="BSR" stroke="#f59e0b" dot={false} />
+                  </LineChart>
+                }
+              />
 
               {/* PHR / TA / Drop % combined */}
-              <ChartCard title="PHR / Timing Advance / Drop %">
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                  <YAxis />
-                  <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
-                  <Legend />
-                  <Line type="monotone" dataKey="phr" name="PHR" stroke="#6366f1" dot={false} />
-                  <Line type="monotone" dataKey="ta" name="TA" stroke="#22c55e" dot={false} />
-                  <Line type="monotone" dataKey="drop" name="Drop %" stroke="#a855f7" dot={false} />
-                </LineChart>
-              </ChartCard>
+              <ChartCard
+                title="PHR / Timing Advance / Drop %"
+                child={
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="t" tickFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                    <YAxis />
+                    <Tooltip labelFormatter={(t) => new Date(Number(t)).toLocaleTimeString()} />
+                    <Legend />
+                    <Line type="monotone" dataKey="phr" name="PHR" stroke="#6366f1" dot={false} />
+                    <Line type="monotone" dataKey="ta" name="TA" stroke="#22c55e" dot={false} />
+                    <Line type="monotone" dataKey="drop" name="Drop %" stroke="#a855f7" dot={false} />
+                  </LineChart>
+                }
+              />
             </div>
           </div>
         );
@@ -154,13 +170,13 @@ export default function UplinkView() {
   );
 }
 
-// Small wrapper to keep chart cards consistent
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+// Wrapper to keep chart cards consistent; ResponsiveContainer requires exactly one child element
+function ChartCard({ title, child }: { title: string; child: ReactElement }) {
   return (
     <div className="h-64 border rounded-xl p-3 bg-white dark:bg-gray-800 dark:border-gray-700">
       <div className="text-sm font-medium mb-2">{title}</div>
       <ResponsiveContainer width="100%" height="85%">
-        {children}
+        {child}
       </ResponsiveContainer>
     </div>
   );
