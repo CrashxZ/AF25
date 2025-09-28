@@ -14,20 +14,12 @@ import { generateMockData } from "@/lib/mockData";
 /**
  * Centralized client-side data store (persistent & tab-safe)
  *
- * ✅ What changed in this version:
- * - Defaults to hitting your Vercel API route: `/api/ingest`
- * - API mode fetches snapshots from `/api/ingest?all=1` and merges new items
- * - Falls back to mock data if the API is unreachable
- * - Persists snapshots, mode, and endpoint in localStorage
- *
- * 🧪 Teammates can POST data to your deployed app:
- *   POST https://<your-vercel-app>.vercel.app/api/ingest
- *   Content-Type: application/json
- *   Body: { timestamp?: number, source: "srsRAN"|"OAI"|string, ues: [...] }
- *
- * 🖥 Dashboard consumption:
- *   GET /api/ingest        -> latest snapshot
- *   GET /api/ingest?all=1  -> recent ring buffer (this store uses this)
+ * Changes in this version:
+ * - `clear()` now FLUSHES local history **and** switches to API mode to avoid auto-generating mock data.
+ *   This means after clearing, no new data appears unless your endpoint posts/transmits again.
+ * - Exposes `latestSource` and `lastReceivedAt` so the UI can display data source (srsRAN/OAI)
+ *   and "time since last transmission".
+ * - Defaults to your Vercel route `/api/ingest` for API mode.
  */
 
 type Downlink = {
@@ -80,6 +72,8 @@ type StoreShape = {
   setEndpoint: (url: string) => void;
   snapshots: Snapshot[];
   latest?: Snapshot;
+  latestSource: string | null;
+  lastReceivedAt: number | null;
   ueHistory: (rnti: number, limit?: number) => UE[];
   pushSnapshot: (s: Snapshot) => void;
   clear: () => void;
@@ -88,15 +82,14 @@ type StoreShape = {
 const DataStoreCtx = createContext<StoreShape | null>(null);
 
 export function DataStoreProvider({ children }: { children: React.ReactNode }) {
-  // Default endpoint is your Vercel API route
   const defaultEndpoint = "/api/ingest";
 
-  // Restore mode/endpoint from localStorage; prefer API if unset
+  // Prefer API by default (so clearing doesn't restart mock unless explicitly chosen)
   const [mode, setMode] = useState<DataMode>(() => {
     if (typeof window === "undefined") return "api";
-    return ((localStorage.getItem(LS_KEY_MODE) as DataMode) ||
-      "api") as DataMode;
+    return ((localStorage.getItem(LS_KEY_MODE) as DataMode) || "api") as DataMode;
   });
+
   const [endpoint, setEndpointState] = useState<string>(() => {
     if (typeof window === "undefined") return defaultEndpoint;
     return localStorage.getItem(LS_KEY_ENDPOINT) || defaultEndpoint;
@@ -104,7 +97,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTsRef = useRef<number>(0); // track last appended timestamp for dedup
+  const lastTsRef = useRef<number>(0);
 
   // Load persisted log on first mount
   useEffect(() => {
@@ -112,8 +105,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
       const raw = localStorage.getItem(LS_KEY_SNAPSHOTS);
       if (raw) {
         const parsed: Snapshot[] = JSON.parse(raw);
-        setSnapshots(parsed.slice(-MAX_SNAPSHOTS));
-        if (parsed.length) lastTsRef.current = parsed[parsed.length - 1].timestamp;
+        const trimmed = parsed.slice(-MAX_SNAPSHOTS);
+        setSnapshots(trimmed);
+        if (trimmed.length) lastTsRef.current = trimmed[trimmed.length - 1].timestamp;
       }
     } catch {
       // ignore
@@ -123,12 +117,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   // Persist snapshots
   useEffect(() => {
     try {
-      localStorage.setItem(
-        LS_KEY_SNAPSHOTS,
-        JSON.stringify(snapshots.slice(-MAX_SNAPSHOTS))
-      );
+      localStorage.setItem(LS_KEY_SNAPSHOTS, JSON.stringify(snapshots.slice(-MAX_SNAPSHOTS)));
     } catch {
-      // ignore
+      // ignore quota failures
     }
   }, [snapshots]);
 
@@ -144,7 +135,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [endpoint]);
 
-  // Helper: append with size cap + update lastTs
+  // Helper: append with cap + update lastTs
   const appendSnapshots = (items: Snapshot[]) => {
     if (!items.length) return;
     setSnapshots((prev) => {
@@ -154,36 +145,30 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Single polling loop for the whole app
+  // Polling loop
   useEffect(() => {
     if (pollingRef.current) clearInterval(pollingRef.current);
 
     pollingRef.current = setInterval(async () => {
       try {
         if (mode === "mock") {
-          // Mock mode: just generate one snapshot
           const s = generateMockData() as Snapshot;
           if (s.timestamp > lastTsRef.current) appendSnapshots([s]);
           return;
         }
 
-        // API mode: try to fetch many at once
+        // API mode: fetch all recent; append only strictly newer
         const url = `${endpoint}${endpoint.includes("?") ? "&" : "?"}all=1`;
         const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
+        if (!res.ok) return; // keep old data visible
         const payload = await res.json();
         const arr: Snapshot[] = Array.isArray(payload) ? payload : [payload].filter(Boolean);
-
-        // Filter only strictly newer snapshots (by timestamp)
         const newer = arr
           .filter((s) => s && typeof s.timestamp === "number" && Array.isArray(s.ues))
           .filter((s) => s.timestamp > lastTsRef.current);
-
         if (newer.length) appendSnapshots(newer);
       } catch {
-        // Fallback: if API unreachable, do nothing (keep existing log visible)
-        // (Optional) you could switch to mock if failures persist.
+        // swallow errors; no new data appended
       }
     }, 3000);
 
@@ -192,7 +177,9 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     };
   }, [mode, endpoint]);
 
-  const latest = snapshots[snapshots.length - 1];
+  const latest = snapshots[snapshots.length - 1] as Snapshot | undefined;
+  const latestSource = latest?.source ?? null;
+  const lastReceivedAt = latest?.timestamp ?? null;
 
   // Build per-UE history map lazily
   const historyIndex = useMemo(() => {
@@ -214,11 +201,18 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     setEndpoint: (url) => setEndpointState(url || defaultEndpoint),
     snapshots,
     latest,
+    latestSource,
+    lastReceivedAt,
     ueHistory: (rnti, limit = 50) => (historyIndex.get(rnti) ?? []).slice(-limit),
     pushSnapshot: (s) => appendSnapshots([s]),
     clear: () => {
+      // Flush browser memory + stop mock regeneration by forcing API mode
       setSnapshots([]);
       lastTsRef.current = 0;
+      setMode("api");
+      try {
+        localStorage.removeItem(LS_KEY_SNAPSHOTS);
+      } catch {}
     }
   };
 
