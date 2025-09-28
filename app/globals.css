@@ -1,0 +1,39 @@
+/* app/globals.css */
+
+/* Tailwind base layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global overrides */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-900 dark:text-gray-100;
+}
+
+/* Smooth font rendering */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Table + card tweaks */
+table {
+  @apply dark:bg-gray-800 dark:text-gray-100;
+}
+
+tr {
+  @apply dark:border-gray-700;
+}
+
+.bg-white {
+  @apply dark:bg-gray-800;
+}
+
+.shadow-card {
+  @apply dark:shadow-none;
+}
