@@ -38,7 +38,7 @@ export function generateMockData() {
 
   return {
     timestamp,
-    source: "srsRAN",
+    source: "OAI",
     ues: [ue]
   };
 }
