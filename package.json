@@ -1,6 +1,6 @@
 {
   "name": "5g-ran-dashboard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Hackathon-ready Next.js + Tailwind + Recharts dashboard for srsRAN/OAI. Deploys on Vercel.",
   "scripts": {
@@ -18,12 +18,14 @@
     "recharts": "2.12.7"
   },
   "devDependencies": {
+    "@types/node": "20.14.12",
+    "@types/react": "18.3.9",
     "autoprefixer": "10.4.19",
-    "postcss": "8.4.38",
-    "tailwindcss": "3.4.13",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.5",
+    "postcss": "8.4.38",
     "prettier": "3.3.3",
+    "tailwindcss": "3.4.13",
     "typescript": "5.6.2"
   },
   "engines": {
