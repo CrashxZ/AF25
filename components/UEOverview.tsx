@@ -37,8 +37,8 @@ export default function UEOverview() {
           pci: ue.pci,
           rnti: ue.rnti,
           cqi: ue.downlink.cqi,
-          dlMbps: ue.downlink.bitrate,
-          ulMbps: ue.uplink.bitrate,
+          dlMbps: ue.downlink.bitrate/1e6,
+          ulMbps: ue.uplink.bitrate/1e6,
           dlDrop: ue.downlink.drop_rate,
           ulDrop: ue.uplink.drop_rate
         });

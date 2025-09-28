@@ -43,7 +43,7 @@ function buildSeries(
     if (!ue) continue;
     out.push({
       t: s.timestamp,
-      bitrate: ue.uplink.bitrate,
+      bitrate: ue.uplink.bitrate/1e6,
       sinr: ue.uplink.pusch_sinr,
       rsrp: ue.uplink.rsrp,
       bsr: ue.uplink.bsr,
