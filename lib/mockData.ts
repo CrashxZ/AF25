@@ -10,7 +10,7 @@ export function generateMockData() {
 
   const ue = {
     pci: rand(1, 100),
-    rnti: rand(1000, 5000),
+    rnti: 2222,
     downlink: {
       cqi: rand(1, 15),
       ri: rand(1, 2),
